@@ -186,30 +186,6 @@ namespace Transformer.Utils
                 });
         }
 
-        public Rev Sin()
-        {
-            return new Rev(Math.Sin(Magnitude),
-                dx =>
-                {
-                    CalculateDerivative(Math.Cos(Magnitude) * dx);
-                });
-        }
-
-        public Rev Cos()
-        {
-            return new Rev(Math.Cos(Magnitude),
-                dx =>
-                {
-                    CalculateDerivative(-Math.Sin(Magnitude) * dx);
-                });
-        }
-
-
-        public void ClearDerivative()
-        {
-            Derivative = 0;
-        }
-
 
     }
 }

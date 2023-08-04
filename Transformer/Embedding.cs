@@ -11,12 +11,14 @@ namespace Transformer
         private List<string> allWords = new List<string>();
         private Dictionary<string, int> one_hot = new Dictionary<string, int>();
         private bool[] dropoutVector;
+        private double dropoutRate = 0;
 
         // Learned linear embedding layer
         private Tensor embeddingLayer;
 
         private Optimizer embeddingLayerOptimizer;
 
+        double DropoutCompensation => 1.0 / (1.0 - dropoutRate);
         public int DictionarySize { get { return one_hot.Count; } }
         public int EmbeddingSize { get; private set; }
         public int SequenceLength { get; private set; }
@@ -47,7 +49,7 @@ namespace Transformer
         /// <param name="sentences"></param>
         /// <param name="isTraining"></param>
         /// <returns></returns>
-        public Tensor Embed(List<List<string>> sentences, bool useDropout)
+        public Tensor Embed(List<List<string>> sentences, bool isTraining)
         {
             int batchSize = sentences.Count;
             Tensor wordEmbeddings = new Tensor(batchSize, SequenceLength, EmbeddingSize);
@@ -71,8 +73,11 @@ namespace Transformer
                 s++;
             }
 
-            if (useDropout)
+            if (isTraining && dropoutRate > 0)
                 wordEmbeddings.Dropout(dropoutVector);
+
+            if (!isTraining && dropoutRate > 0)
+                wordEmbeddings *= DropoutCompensation;
 
             return wordEmbeddings;
         }
@@ -190,12 +195,17 @@ namespace Transformer
             }
         }
 
-        public void SetDropoutNodes(double dropout)
+        public void SetDropoutNodes(double dropoutRate)
         {
+            if (dropoutRate < 0 || dropoutRate >= 1)
+                throw new ArgumentException("Error: dropout rate must be >= 0 and < 1");
+
+            this.dropoutRate = dropoutRate;
+
             for (int i = 0; i < EmbeddingSize; i++)
             {
                 dropoutVector[i] = false;
-                if (RandomNumbers.Instance.GetNextUniformNumber() < dropout)
+                if (RandomNumbers.Instance.GetNextUniformNumber() < dropoutRate)
                     dropoutVector[i] = true;
             }
         }

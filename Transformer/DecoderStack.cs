@@ -18,12 +18,12 @@ namespace Transformer
             }
         }
 
-        public Tensor Decode(Tensor encoderOutput, Tensor word_embeddings, bool useDropout)
+        public Tensor Decode(Tensor encoderOutput, Tensor word_embeddings, bool isTraining)
         {
-            var decoderOutput = decoderLayers[0].Decode(encoderOutput, word_embeddings, useDropout);
+            var decoderOutput = decoderLayers[0].Decode(encoderOutput, word_embeddings, isTraining);
             for (int i = 1; i < Nx; i++)
             {
-                decoderOutput = decoderLayers[i].Decode(encoderOutput, decoderOutput, useDropout);
+                decoderOutput = decoderLayers[i].Decode(encoderOutput, decoderOutput, isTraining);
             }
 
             return decoderOutput;

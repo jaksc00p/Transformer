@@ -54,7 +54,7 @@ namespace Transformer
                     for (int step = 1; step <= nrTrainingSteps; step++)
                     {
                         SetDropoutNodes();
-                        double loss = Translate(batchSize, true, dropout > 0, englishSentences, spanishSentences, out _);
+                        double loss = Translate(batchSize, true, englishSentences, spanishSentences, out _);
                         Console.WriteLine("Step: " + step + ", loss: " + loss.ToString());
                         MakeTrainingStep(learningRate, step);
                     }
@@ -89,7 +89,7 @@ namespace Transformer
                     continue;
                 }
 
-                Translate(1, false, false, englishSentence, null, out List<List<string>> translatedSpanishSentence);
+                Translate(1, false, englishSentence, null, out List<List<string>> translatedSpanishSentence);
                 Console.WriteLine("Spanish translation:");
                 string translation = TextProcessing.ProcessSentence(translatedSpanishSentence, 0);
                 translation = translation.Replace("<", "");
@@ -104,21 +104,21 @@ namespace Transformer
         /// Translate a batch of sentenses by generating one word at a time for each sentence with the decoder until max 
         /// length or stopping character.
         /// </summary>
-        private double Translate(int batchSize, bool isTraining, bool useDropout, List<List<string>> englishSentences,
+        private double Translate(int batchSize, bool isTraining, List<List<string>> englishSentences,
             List<List<string>> correctSpanishSentences, out List<List<string>> translatedSpanishSentences)
         {
             loss = new Rev(0.0);
             Checkpoints.Instance.ClearCheckpoints();
 
             var english_word_embeddings = englishEmbedding.Embed(englishSentences, isTraining);
-            var encoderOutput = encoder.Encode(english_word_embeddings, useDropout);
+            var encoderOutput = encoder.Encode(english_word_embeddings, isTraining);
 
             translatedSpanishSentences = TextProcessing.InitializeSpanishSentences(batchSize);
             int nrWords = isTraining ? TextProcessing.CalculateMaxSentenceLength(correctSpanishSentences) : sequenceLength;
             for (int w = 1; w < nrWords; w++)
             {
-                var spanish_word_embeddings = spanishEmbedding.Embed(translatedSpanishSentences, useDropout);
-                Tensor decoder_output = decoder.Decode(encoderOutput, spanish_word_embeddings, useDropout);
+                var spanish_word_embeddings = spanishEmbedding.Embed(translatedSpanishSentences, isTraining);
+                Tensor decoder_output = decoder.Decode(encoderOutput, spanish_word_embeddings, isTraining);
                 Tensor output = outputLayer.Output(decoder_output);
 
                 if (isTraining)
