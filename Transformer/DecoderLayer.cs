@@ -11,10 +11,8 @@ namespace Transformer
         private MultiHeadAttention mha_masked;
         public FeedForwardNetwork ff;
 
-        private bool[] dropoutVector1, dropoutVector2, dropoutVector3;
+        private bool[] dropoutMask1, dropoutMask2, dropoutMask3;
         private double dropoutRate = 0;
-
-        double DropoutCompensation => 1.0 / (1.0 - dropoutRate);
 
         public DecoderLayer(int embeddingSize, int dk, int dv, int h, int dff)
         {
@@ -24,9 +22,9 @@ namespace Transformer
             mha_masked = new MultiHeadAttention(dk, dv, h, embeddingSize, true);
             ff = new FeedForwardNetwork(dff, embeddingSize);
 
-            dropoutVector1 = new bool[embeddingSize];
-            dropoutVector2 = new bool[embeddingSize];
-            dropoutVector3 = new bool[embeddingSize];
+            dropoutMask1 = new bool[embeddingSize];
+            dropoutMask2 = new bool[embeddingSize];
+            dropoutMask3 = new bool[embeddingSize];
         }
 
         public Tensor Decode(Tensor encoderOutput, Tensor decoderInput, bool isTraining)
@@ -34,25 +32,19 @@ namespace Transformer
             // Masked multi headed attention
             var maskedAttentionFilteredData = mha_masked.Update(decoderInput);
             if (isTraining && dropoutRate > 0)
-                maskedAttentionFilteredData.Dropout(dropoutVector1);
-            if (!isTraining && dropoutRate > 0)
-                maskedAttentionFilteredData *= DropoutCompensation;
+                maskedAttentionFilteredData = maskedAttentionFilteredData.Dropout(dropoutMask1, dropoutRate);
             maskedAttentionFilteredData = Tensor.AddNorm(decoderInput, maskedAttentionFilteredData);
 
             // Multi headed attention
             var attentionFilteredData = mha.Update(encoderOutput, maskedAttentionFilteredData);
             if (isTraining && dropoutRate > 0)
-                attentionFilteredData.Dropout(dropoutVector2);
-            if (!isTraining && dropoutRate > 0)
-                attentionFilteredData *= DropoutCompensation;
+                attentionFilteredData = attentionFilteredData.Dropout(dropoutMask2, dropoutRate);
             attentionFilteredData = Tensor.AddNorm(maskedAttentionFilteredData, attentionFilteredData);
 
             // Feed forward neural network
             var feedForwardOutput = ff.FeedForward(attentionFilteredData);
             if (isTraining && dropoutRate > 0)
-                feedForwardOutput.Dropout(dropoutVector3);
-            if (!isTraining && dropoutRate > 0)
-                feedForwardOutput *= DropoutCompensation;
+                feedForwardOutput = feedForwardOutput.Dropout(dropoutMask3, dropoutRate);
             feedForwardOutput = Tensor.AddNorm(attentionFilteredData, feedForwardOutput);
 
             return feedForwardOutput;
@@ -67,17 +59,17 @@ namespace Transformer
 
             for (int i = 0; i < embeddingSize; i++)
             {
-                dropoutVector1[i] = false;
+                dropoutMask1[i] = false;
                 if (RandomNumbers.Instance.GetNextUniformNumber() < dropoutRate)
-                    dropoutVector1[i] = true;
+                    dropoutMask1[i] = true;
 
-                dropoutVector2[i] = false;
+                dropoutMask2[i] = false;
                 if (RandomNumbers.Instance.GetNextUniformNumber() < dropoutRate)
-                    dropoutVector2[i] = true;
+                    dropoutMask2[i] = true;
 
-                dropoutVector3[i] = false;
+                dropoutMask3[i] = false;
                 if (RandomNumbers.Instance.GetNextUniformNumber() < dropoutRate)
-                    dropoutVector3[i] = true;
+                    dropoutMask3[i] = true;
             }
         }
 

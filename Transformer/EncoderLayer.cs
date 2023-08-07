@@ -10,10 +10,8 @@ namespace Transformer
         private MultiHeadAttention mha;
         private FeedForwardNetwork ff;
 
-        private bool[] dropoutVector1, dropoutVector2;
+        private bool[] dropoutMask1, dropoutMask2;
         private double dropoutRate = 0;
-
-        double DropoutCompensation => 1.0 / (1.0 - dropoutRate);
 
         public EncoderLayer(int embeddingSize, int dk, int dv, int h, int dff)
         {
@@ -22,8 +20,8 @@ namespace Transformer
             mha = new MultiHeadAttention(dk, dv, h, embeddingSize, false);
             ff = new FeedForwardNetwork(dff, embeddingSize);
 
-            dropoutVector1 = new bool[embeddingSize];
-            dropoutVector2 = new bool[embeddingSize];
+            dropoutMask1 = new bool[embeddingSize];
+            dropoutMask2 = new bool[embeddingSize];
         }
 
         public Tensor Encode(Tensor encoderInput, bool isTraining)
@@ -31,17 +29,13 @@ namespace Transformer
             // Multi headed attention
             var attentionFilteredData = mha.Update(encoderInput);
             if (isTraining && dropoutRate > 0)
-                attentionFilteredData.Dropout(dropoutVector1);
-            if (!isTraining && dropoutRate > 0)
-                attentionFilteredData *= DropoutCompensation;
+                attentionFilteredData = attentionFilteredData.Dropout(dropoutMask1, dropoutRate);
             attentionFilteredData = Tensor.AddNorm(encoderInput, attentionFilteredData);
 
             // Feed forward neural network
             var feedForwardOutput = ff.FeedForward(attentionFilteredData);
             if (isTraining && dropoutRate > 0)
-                feedForwardOutput.Dropout(dropoutVector2);
-            if (!isTraining && dropoutRate > 0)
-                feedForwardOutput *= DropoutCompensation;
+                feedForwardOutput = feedForwardOutput.Dropout(dropoutMask2, dropoutRate);
             feedForwardOutput = Tensor.AddNorm(attentionFilteredData, feedForwardOutput);
 
             return feedForwardOutput;
@@ -56,13 +50,13 @@ namespace Transformer
 
             for (int i = 0; i < embeddingSize; i++)
             {
-                dropoutVector1[i] = false;
+                dropoutMask1[i] = false;
                 if (RandomNumbers.Instance.GetNextUniformNumber() < dropoutRate)
-                    dropoutVector1[i] = true;
+                    dropoutMask1[i] = true;
 
-                dropoutVector2[i] = false;
+                dropoutMask2[i] = false;
                 if (RandomNumbers.Instance.GetNextUniformNumber() < dropoutRate)
-                    dropoutVector2[i] = true;
+                    dropoutMask2[i] = true;
             }
         }
 

@@ -10,7 +10,7 @@ namespace Transformer
     {
         private List<string> allWords = new List<string>();
         private Dictionary<string, int> one_hot = new Dictionary<string, int>();
-        private bool[] dropoutVector;
+        private bool[] dropoutMask;
         private double dropoutRate = 0;
 
         // Learned linear embedding layer
@@ -18,7 +18,6 @@ namespace Transformer
 
         private Optimizer embeddingLayerOptimizer;
 
-        double DropoutCompensation => 1.0 / (1.0 - dropoutRate);
         public int DictionarySize { get { return one_hot.Count; } }
         public int EmbeddingSize { get; private set; }
         public int SequenceLength { get; private set; }
@@ -40,7 +39,7 @@ namespace Transformer
 
             embeddingLayerOptimizer = new Optimizer(embeddingLayer);
 
-            dropoutVector = new bool[embeddingSize];
+            dropoutMask = new bool[embeddingSize];
         }
 
         /// <summary>
@@ -74,10 +73,7 @@ namespace Transformer
             }
 
             if (isTraining && dropoutRate > 0)
-                wordEmbeddings.Dropout(dropoutVector);
-
-            if (!isTraining && dropoutRate > 0)
-                wordEmbeddings *= DropoutCompensation;
+                wordEmbeddings = wordEmbeddings.Dropout(dropoutMask, dropoutRate);
 
             return wordEmbeddings;
         }
@@ -204,9 +200,9 @@ namespace Transformer
 
             for (int i = 0; i < EmbeddingSize; i++)
             {
-                dropoutVector[i] = false;
+                dropoutMask[i] = false;
                 if (RandomNumbers.Instance.GetNextUniformNumber() < dropoutRate)
-                    dropoutVector[i] = true;
+                    dropoutMask[i] = true;
             }
         }
 

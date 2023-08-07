@@ -328,14 +328,17 @@ namespace Transformer.Utils
         /// <summary>
         /// Zero out elemens of the last dimension of a tensor based on a masking array
         /// </summary>
-        /// <param name="dropoutVector"></param>
+        /// <param name="dropoutMask"></param>
         /// <param name="isTraining"></param>
         /// <exception cref="ArgumentException"></exception>
-        public void Dropout(bool[] dropoutVector)
+        public Tensor Dropout(bool[] dropoutMask, double dropoutRate)
         {
             int imax = sizes[Dimension - 1];
-            if (imax != dropoutVector.Length)
+            if (imax != dropoutMask.Length)
                 throw new ArgumentException("Wrong length of fropout vector");
+
+            Tensor T = new Tensor(this, true);
+            T *= 1.0 / (1.0 - dropoutRate);
 
             int nrBlocks = nrValues / imax;
             for (int block = 0; block < nrBlocks; block++)
@@ -343,10 +346,12 @@ namespace Transformer.Utils
                 int offset = block * imax;
                 for (int i = 0; i < imax; i++)
                 {
-                    if (dropoutVector[i])
-                        values[offset + i] = new Rev(0.0);
+                    if (dropoutMask[i])
+                        T.values[offset + i] = new Rev(0.0);
                 }
             }
+
+            return T;
 
         }
 
